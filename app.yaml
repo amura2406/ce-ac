@@ -4,6 +4,9 @@ env: flex
 automatic_scaling:
   min_num_instances: 1
 
+beta_settings:
+  enable_app_engine_apis: true
+
 #[START env_variables]
 env_variables:
   GOOGLE_CLOUD_PROJECT: gcp-ce-211411

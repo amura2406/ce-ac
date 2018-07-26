@@ -161,24 +161,26 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 var tmpl = template.Must(template.New("").Parse(`<!DOCTYPE html>
 <html>
   <head>
-    <title>Pub/Sub</title>
+		<title>Autocomplete Demo</title>
+		<!-- JS file -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/easy-autocomplete/1.3.5/jquery.easy-autocomplete.min.js"></script> 
+
+		<!-- CSS file -->
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easy-autocomplete/1.3.5/easy-autocomplete.min.css"> 
   </head>
   <body>
-    <div>
-      <p>Last ten messages received by this instance:</p>
-      <ul>
-      {{ range . }}
-          <li>{{ . }}</li>
-      {{ end }}
-      </ul>
-    </div>
-    <!-- [START form] -->
-    <form method="post" action="/pubsub/publish">
-      <textarea name="payload" placeholder="Enter message here"></textarea>
-      <input type="submit">
-    </form>
-    <!-- [END form] -->
-    <p>Note: if the application is running across multiple instances, each
-      instance will have its own list of messages.</p>
+		<input id="basics" />
+		<script>
+
+			$(document).ready(function() {
+				var options = {
+					data: ["blue", "green", "pink", "red", "yellow"]
+				};
+
+				$("#basics").easyAutocomplete(options);
+			});
+			
+		</script>
   </body>
 </html>`))
