@@ -9,17 +9,11 @@ import (
 	"os"
 	"sync"
 
-	"cloud.google.com/go/pubsub"
-
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/search"
-
-	"golang.org/x/net/context"
 )
 
 var (
-	topic *pubsub.Topic
-
 	// Messages received by this instance.
 	messagesMu sync.Mutex
 	messages   []string
@@ -31,23 +25,8 @@ var (
 const maxMessages = 10
 
 func main() {
-	ctx := context.Background()
-
-	client, err := pubsub.NewClient(ctx, mustGetenv("GOOGLE_CLOUD_PROJECT"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	authToken = mustGetenv("PUBSUB_VERIFICATION_TOKEN")
 	searchIndex = mustGetenv("SEARCH_INDEX")
-
-	// Create topic if it doesn't exist.
-	topicName := mustGetenv("PUBSUB_TOPIC")
-	topic, _ = client.CreateTopic(ctx, topicName)
-	// Get handle for topic in case it already existed.
-	if topic == nil {
-		topic = client.Topic(topicName)
-	}
 
 	http.HandleFunc("/", listHandler)
 	http.HandleFunc("/pubsub/push", pushHandler)
