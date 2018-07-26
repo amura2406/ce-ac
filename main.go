@@ -147,6 +147,15 @@ var tmpl = template.Must(template.New("").Parse(`<!DOCTYPE html>
 
 		<!-- CSS file -->
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easy-autocomplete/1.3.5/easy-autocomplete.min.css"> 
+		<style>
+			.container {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				width: 100%;
+				height: 100vh;
+			}
+		</style>
   </head>
   <body>
 		<div class="container">
