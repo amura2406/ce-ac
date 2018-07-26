@@ -1,11 +1,7 @@
-// Copyright 2015 Google Inc. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
-
-// Sample pubsub demonstrates use of the cloud.google.com/go/pubsub package from App Engine flexible environment.
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -17,6 +13,7 @@ import (
 	"cloud.google.com/go/pubsub"
 
 	"google.golang.org/appengine"
+	"google.golang.org/appengine/search"
 
 	"golang.org/x/net/context"
 )
@@ -71,29 +68,51 @@ func mustGetenv(k string) string {
 type pushRequest struct {
 	Message struct {
 		Attributes map[string]string
-		Data       []byte
+		Data       Product
 		ID         string `json:"message_id"`
 	}
 	Subscription string
 }
 
 type Product struct {
-	ID   string
-	Name string
+	ID    int64  `json:"sku"`
+	Name  string `json:"name"`
+	Image string `json:"image"`
+}
+
+type ProductDoc struct {
+	Name  string
+	Image string
 }
 
 func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 	queryStr := r.URL.Query().Get("q")
 
-	// ctx := appengine.NewContext(r)
+	ctx := appengine.NewContext(r)
 
-	// index, err := search.Open(searchIndex)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	index, err := search.Open(searchIndex)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	fmt.Fprint(w, queryStr)
+	result := bytes.NewBufferString("")
+	searchOpts := &search.SearchOptions{
+		Limit: 10,
+	}
+	for t := index.Search(ctx, fmt.Sprintf("Name: %s", queryStr), searchOpts); ; {
+		var doc ProductDoc
+		id, err := t.Next(&doc)
+		if err == search.Done {
+			break
+		}
+		if err != nil {
+			fmt.Fprintf(w, "Search error: %v\n", err)
+			break
+		}
+		fmt.Fprintf(result, "%s -> %#v\n", id, doc)
+	}
+	fmt.Fprint(w, result.String())
 }
 
 func pushHandler(w http.ResponseWriter, r *http.Request) {
@@ -109,26 +128,23 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	messagesMu.Lock()
-	defer messagesMu.Unlock()
-	// Limit to ten.
-	messages = append(messages, string(msg.Message.Data))
-	if len(messages) > maxMessages {
-		messages = messages[len(messages)-maxMessages:]
+	ctx := appengine.NewContext(r)
+
+	index, err := search.Open(searchIndex)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	// ctx := appengine.NewContext(r)
-	// index, err := search.Open(searchIndex)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// _, err = index.Put(ctx, id, user)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	p := msg.Message.Data
+	_, err = index.Put(ctx, string(p.ID), &ProductDoc{
+		Name:  p.Name,
+		Image: p.Image,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	fmt.Fprint(w, "OK")
 }
@@ -141,21 +157,6 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Could not execute template: %v", err)
 	}
 }
-
-// func publishHandler(w http.ResponseWriter, r *http.Request) {
-// 	ctx := context.Background()
-
-// 	msg := &pubsub.Message{
-// 		Data: []byte(r.FormValue("payload")),
-// 	}
-
-// 	if _, err := topic.Publish(ctx, msg).Get(ctx); err != nil {
-// 		http.Error(w, fmt.Sprintf("Could not publish message: %v", err), 500)
-// 		return
-// 	}
-
-// 	fmt.Fprint(w, "Message published.")
-// }
 
 var tmpl = template.Must(template.New("").Parse(`<!DOCTYPE html>
 <html>
