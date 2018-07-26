@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -81,8 +80,8 @@ type Product struct {
 }
 
 type ProductDoc struct {
-	Name  string
-	Image string
+	Name  string `json:"name"`
+	Image string `json:"image"`
 }
 
 func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
@@ -96,13 +95,13 @@ func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := bytes.NewBufferString("")
+	result := []ProductDoc{}
 	searchOpts := &search.SearchOptions{
 		Limit: 10,
 	}
 	for t := index.Search(ctx, fmt.Sprintf("Name: %s", queryStr), searchOpts); ; {
 		var doc ProductDoc
-		id, err := t.Next(&doc)
+		_, err := t.Next(&doc)
 		if err == search.Done {
 			break
 		}
@@ -110,9 +109,10 @@ func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "Search error: %v\n", err)
 			break
 		}
-		fmt.Fprintf(result, "%s -> %#v\n", id, doc)
+		result = append(result, doc)
 	}
-	fmt.Fprint(w, result.String())
+
+	json.NewEncoder(w).Encode(result)
 }
 
 func pushHandler(w http.ResponseWriter, r *http.Request) {
@@ -170,17 +170,23 @@ var tmpl = template.Must(template.New("").Parse(`<!DOCTYPE html>
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easy-autocomplete/1.3.5/easy-autocomplete.min.css"> 
   </head>
   <body>
-		<input id="basics" />
+		<div class="container">
+			<input id="basics" />
+		</div>
 		<script>
 
 			$(document).ready(function() {
 				var options = {
-					data: ["blue", "green", "pink", "red", "yellow"]
+					url: function(phrase) {
+						return "search?q=" + phrase;
+					},
+				
+					getValue: "name"
 				};
 
 				$("#basics").easyAutocomplete(options);
 			});
-			
+
 		</script>
   </body>
 </html>`))
