@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
 	"google.golang.org/appengine"
@@ -46,16 +47,14 @@ func mustGetenv(k string) string {
 type pushRequest struct {
 	Message struct {
 		Attributes map[string]string
-		Data       Product
-		ID         string `json:"message_id"`
+		Data       struct {
+			ID    int64  `json:"sku"`
+			Name  string `json:"name"`
+			Image string `json:"image"`
+		}
+		ID string `json:"message_id"`
 	}
 	Subscription string
-}
-
-type Product struct {
-	ID    int64  `json:"sku"`
-	Name  string `json:"name"`
-	Image string `json:"image"`
 }
 
 type ProductDoc struct {
@@ -78,7 +77,7 @@ func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 	searchOpts := &search.SearchOptions{
 		Limit: 10,
 	}
-	for t := index.Search(ctx, fmt.Sprintf("Name: %s", queryStr), searchOpts); ; {
+	for t := index.Search(ctx, fmt.Sprintf("Name = %s", queryStr), searchOpts); ; {
 		var doc ProductDoc
 		_, err := t.Next(&doc)
 		if err == search.Done {
@@ -116,7 +115,7 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := msg.Message.Data
-	_, err = index.Put(ctx, string(p.ID), &ProductDoc{
+	_, err = index.Put(ctx, strconv.FormatInt(p.ID, 10), &ProductDoc{
 		Name:  p.Name,
 		Image: p.Image,
 	})
