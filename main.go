@@ -27,7 +27,9 @@ var (
 	// Messages received by this instance.
 	messagesMu sync.Mutex
 	messages   []string
-	authToken  string
+
+	authToken   string
+	searchIndex string
 )
 
 const maxMessages = 10
@@ -41,6 +43,7 @@ func main() {
 	}
 
 	authToken = mustGetenv("PUBSUB_VERIFICATION_TOKEN")
+	searchIndex = mustGetenv("SEARCH_INDEX")
 
 	// Create topic if it doesn't exist.
 	topicName := mustGetenv("PUBSUB_TOPIC")
@@ -74,8 +77,21 @@ type pushRequest struct {
 	Subscription string
 }
 
+type Product struct {
+	ID   string
+	Name string
+}
+
 func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 	queryStr := r.URL.Query().Get("q")
+
+	// ctx := appengine.NewContext(r)
+
+	// index, err := search.Open(searchIndex)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 
 	fmt.Fprint(w, queryStr)
 }
@@ -100,6 +116,21 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	if len(messages) > maxMessages {
 		messages = messages[len(messages)-maxMessages:]
 	}
+
+	// ctx := appengine.NewContext(r)
+	// index, err := search.Open(searchIndex)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// _, err = index.Put(ctx, id, user)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+
+	fmt.Fprint(w, "OK")
 }
 
 func listHandler(w http.ResponseWriter, r *http.Request) {
