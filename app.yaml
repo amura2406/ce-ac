@@ -1,11 +1,9 @@
 runtime: go
-env: flex
+api_version: go1
 
-automatic_scaling:
-  min_num_instances: 1
-
-beta_settings:
-  enable_app_engine_apis: true
+handlers:
+- url: /.*
+  script: _go_app
 
 #[START env_variables]
 env_variables:
