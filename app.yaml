@@ -1,0 +1,12 @@
+runtime: go
+env: flex
+
+automatic_scaling:
+  min_num_instances: 1
+
+#[START env_variables]
+env_variables:
+  GOOGLE_CLOUD_PROJECT: gcp-ce-211411
+  PUBSUB_VERIFICATION_TOKEN: ABCDEFGHIJKLMN123456789
+  PUBSUB_TOPIC: projects/gcp-ce-211411/topics/product_update
+#[END env_variables]
