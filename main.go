@@ -7,11 +7,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 
+	"github.com/gomodule/redigo/redis"
 	"google.golang.org/appengine"
-	"google.golang.org/appengine/search"
 )
 
 var (
@@ -19,15 +18,23 @@ var (
 	messagesMu sync.Mutex
 	messages   []string
 
-	authToken   string
-	searchIndex string
+	redisPool *redis.Pool
+	authToken string
 )
 
 const maxMessages = 10
 
 func main() {
 	authToken = mustGetenv("PUBSUB_VERIFICATION_TOKEN")
-	searchIndex = mustGetenv("SEARCH_INDEX")
+
+	redisHost := mustGetenv("REDISHOST")
+	redisPort := mustGetenv("REDISPORT")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+
+	const maxConnections = 10
+	redisPool = redis.NewPool(func() (redis.Conn, error) {
+		return redis.Dial("tcp", redisAddr)
+	}, maxConnections)
 
 	http.HandleFunc("/", listHandler)
 	http.HandleFunc("/pubsub/push", pushHandler)
@@ -65,32 +72,41 @@ type ProductDoc struct {
 func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 	queryStr := r.URL.Query().Get("q")
 
-	ctx := appengine.NewContext(r)
+	conn := redisPool.Get()
+	defer conn.Close()
 
-	index, err := search.Open(searchIndex)
+	results, err := redis.Strings(conn.Do("ZRANGEBYLEX", queryStr, "-", "+", "LIMIT", "0", "10"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Error connecting to redis", http.StatusInternalServerError)
 		return
 	}
+	json.NewEncoder(w).Encode(results)
+	// ctx := appengine.NewContext(r)
 
-	result := []ProductDoc{}
-	searchOpts := &search.SearchOptions{
-		Limit: 10,
-	}
-	for t := index.Search(ctx, fmt.Sprintf("Name = %s", queryStr), searchOpts); ; {
-		var doc ProductDoc
-		_, err := t.Next(&doc)
-		if err == search.Done {
-			break
-		}
-		if err != nil {
-			fmt.Fprintf(w, "Search error: %v\n", err)
-			break
-		}
-		result = append(result, doc)
-	}
+	// index, err := search.Open(searchIndex)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 
-	json.NewEncoder(w).Encode(result)
+	// result := []ProductDoc{}
+	// searchOpts := &search.SearchOptions{
+	// 	Limit: 10,
+	// }
+	// for t := index.Search(ctx, fmt.Sprintf("Name = %s", queryStr), searchOpts); ; {
+	// 	var doc ProductDoc
+	// 	_, err := t.Next(&doc)
+	// 	if err == search.Done {
+	// 		break
+	// 	}
+	// 	if err != nil {
+	// 		fmt.Fprintf(w, "Search error: %v\n", err)
+	// 		break
+	// 	}
+	// 	result = append(result, doc)
+	// }
+
+	// json.NewEncoder(w).Encode(result)
 }
 
 func pushHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,23 +122,35 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := appengine.NewContext(r)
+	conn := redisPool.Get()
+	defer conn.Close()
 
-	index, err := search.Open(searchIndex)
+	term := msg.Message.Data.Name
+	substr := term[:2]
+	termLen := len(term)
+	reply, err := redis.Int(conn.Do("ZADD", substr, termLen))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Error connecting to redis", http.StatusInternalServerError)
 		return
 	}
 
-	p := msg.Message.Data
-	_, err = index.Put(ctx, strconv.FormatInt(p.ID, 10), &ProductDoc{
-		Name:  p.Name,
-		Image: p.Image,
-	})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// ctx := appengine.NewContext(r)
+
+	// index, err := search.Open(searchIndex)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// p := msg.Message.Data
+	// _, err = index.Put(ctx, strconv.FormatInt(p.ID, 10), &ProductDoc{
+	// 	Name:  p.Name,
+	// 	Image: p.Image,
+	// })
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 
 	fmt.Fprint(w, "OK")
 }
