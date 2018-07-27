@@ -128,7 +128,7 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	term := msg.Message.Data.Name
 	substr := term[:2]
 	termLen := len(term)
-	_, err := redis.Int(conn.Do("ZADD", substr, termLen))
+	_, err := redis.Int(conn.Do("ZADD", substr, termLen, term))
 	if err != nil {
 		http.Error(w, "Error connecting to redis", http.StatusInternalServerError)
 		return
