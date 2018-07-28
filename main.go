@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -160,11 +161,13 @@ func storeTermToRedis(term string) error {
 		defer conn.Close()
 
 		const minChars = 2
-		for i := 0; i < termLen-1; i++ {
+		const maxChars = 5
+		loopCount := math.Min(termLen-1, maxChars)
+		for i := 0; i < loopCount; i++ {
 			numChar := minChars + i
 			substr := lTerm[:numChar]
 
-			Info.Println("ADD to redis set [", substr, "] :", term, "(len: ", termLen)
+			Info.Println("ADD to redis set [", substr, "] :", term, "(len: ", termLen, ")")
 			_, err := redis.Int(conn.Do("ZADD", substr, termLen, term))
 			if err != nil {
 				return err
