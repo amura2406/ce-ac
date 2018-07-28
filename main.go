@@ -162,7 +162,7 @@ func storeTermToRedis(term string) error {
 
 		const minChars = 2
 		const maxChars = 5
-		loopCount := math.Min(termLen-1, maxChars)
+		loopCount := int(math.Min(float64(termLen-1), float64(maxChars)))
 		for i := 0; i < loopCount; i++ {
 			numChar := minChars + i
 			substr := lTerm[:numChar]
