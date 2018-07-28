@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -144,7 +143,7 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 	} else {
-		http.Error(w, "Error while storing to redis", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -165,9 +164,10 @@ func storeTermToRedis(term string) error {
 			numChar := minChars + i
 			substr := lTerm[:numChar]
 
+			Info.Println("ADD to redis set [", substr, "] :", term, "(len: ", termLen)
 			_, err := redis.Int(conn.Do("ZADD", substr, termLen, term))
 			if err != nil {
-				return errors.New("Error connecting to redis")
+				return err
 			}
 		}
 
