@@ -176,8 +176,10 @@ func storeTermToRedis(term string) error {
 			Info.Println("ADD to redis set [", substr, "] :", term, "(len: ", termLen, ")")
 			_, err := redis.Int(conn.Do("ZADD", substr, termLen, term))
 			if err != nil {
+				Error.Println(err)
 				return err
 			}
+			Info.Println("ADD into [", substr, "] success")
 		}
 
 		Info.Println("Successfully add [", term, "]")
