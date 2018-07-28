@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/rs/cors"
@@ -32,10 +33,7 @@ func main() {
 	redisPort := mustGetenv("REDISPORT")
 	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 
-	const maxConnections = 10
-	redisPool = redis.NewPool(func() (redis.Conn, error) {
-		return redis.Dial("tcp", redisAddr)
-	}, maxConnections)
+	redisPool = newRedisPool(redisAddr)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", healthCheckHandler)
@@ -45,6 +43,16 @@ func main() {
 	handler := cors.AllowAll().Handler(mux)
 
 	log.Fatal(http.ListenAndServe(":8080", handler))
+}
+
+func newRedisPool(addr string) *redis.Pool {
+	return &redis.Pool{
+		MaxIdle:     10,
+		MaxActive:   500,
+		IdleTimeout: 240 * time.Second,
+		Wait:        true,
+		Dial:        func() (redis.Conn, error) { return redis.Dial("tcp", addr) },
+	}
 }
 
 func mustGetenv(k string) string {
