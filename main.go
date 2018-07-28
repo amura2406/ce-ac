@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -52,17 +53,19 @@ func mustGetenv(k string) string {
 	return v
 }
 
-type pushRequest struct {
+type PubSubPushRequest struct {
 	Message struct {
 		Attributes map[string]string
-		Data       struct {
-			ID    int64  `json:"sku"`
-			Name  string `json:"name"`
-			Image string `json:"image"`
-		}
-		ID string `json:"message_id"`
+		Data       string
+		ID         string `json:"message_id"`
 	}
 	Subscription string
+}
+
+type Product struct {
+	ID    int64  `json:"sku"`
+	Name  string `json:"name"`
+	Image string `json:"image"`
 }
 
 type ProductDoc struct {
@@ -106,17 +109,31 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := &pushRequest{}
+	msg := &PubSubPushRequest{}
 	if err = json.NewDecoder(r.Body).Decode(msg); err != nil {
 		Error.Println("Invalid request payload:", string(reqDump))
 		http.Error(w, fmt.Sprintf("Could not decode body: %v", err), http.StatusBadRequest)
 		return
 	}
 
+	productJson, err := base64.StdEncoding.DecodeString(msg.Message.Data)
+	if err != nil {
+		Error.Println("Could not decode base64 data:", msg.Message.Data)
+		http.Error(w, fmt.Sprintf("Could not decode base64 data (%v): %v", err, msg.Message.Data), http.StatusBadRequest)
+		return
+	}
+
+	product := &Product{}
+	if err = json.Unmarshal(productJson, product); err != nil {
+		Error.Println("Invalid request payload:", string(productJson))
+		http.Error(w, fmt.Sprintf("Could not decode message: %v", err), http.StatusBadRequest)
+		return
+	}
+
 	conn := redisPool.Get()
 	defer conn.Close()
 
-	term := msg.Message.Data.Name
+	term := product.Name
 	substr := term[:2]
 	termLen := len(term)
 	_, err = redis.Int(conn.Do("ZADD", substr, termLen, term))
@@ -126,7 +143,7 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	Info.Println("Successfully add [", term, "]")
 
-	fmt.Fprint(w, "OK")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
