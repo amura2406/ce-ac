@@ -162,7 +162,7 @@ func storeTermToRedis(term string) error {
 	if conn.Err() != nil {
 		return conn.Err()
 	}
-	defer conn.Close()
+	// defer conn.Close()
 
 	if termLen > 1 {
 		const minChars = 2
