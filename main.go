@@ -85,19 +85,24 @@ type ProductDoc struct {
 func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 	queryStr := r.URL.Query().Get("q")
 
+	now := time.Now()
 	conn := redisPool.Get()
 	if conn.Err() != nil {
 		http.Error(w, conn.Err().Error(), http.StatusServiceUnavailable)
 		return
 	}
 	defer conn.Close()
+	timeTrack(now, "get redis connection")
 
+	now = time.Now()
 	results, err := redis.Strings(conn.Do("ZRANGEBYLEX", strings.ToLower(queryStr), "-", "+", "LIMIT", "0", "10"))
 	if err != nil {
 		http.Error(w, "Error connecting to redis", http.StatusInternalServerError)
 		return
 	}
+	timeTrack(now, "call ZRANGEBYLEX")
 
+	now = time.Now()
 	respJson := []ProductDoc{}
 	for _, term := range results {
 		p := &ProductDoc{
@@ -106,6 +111,7 @@ func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 		respJson = append(respJson, *p)
 	}
 	json.NewEncoder(w).Encode(respJson)
+	timeTrack(now, "construct JSON response")
 }
 
 func pushHandler(w http.ResponseWriter, r *http.Request) {
@@ -187,4 +193,9 @@ func storeTermToRedis(term string) error {
 	}
 
 	return nil
+}
+
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	Info.Printf("%s took %s", name, elapsed)
 }
