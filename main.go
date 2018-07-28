@@ -3,26 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"sync"
 
 	"github.com/gomodule/redigo/redis"
 	"google.golang.org/appengine"
 )
 
 var (
-	// Messages received by this instance.
-	messagesMu sync.Mutex
-	messages   []string
-
 	redisPool *redis.Pool
 	authToken string
 )
-
-const maxMessages = 10
 
 func main() {
 	authToken = mustGetenv("PUBSUB_VERIFICATION_TOKEN")
@@ -36,7 +28,7 @@ func main() {
 		return redis.Dial("tcp", redisAddr)
 	}, maxConnections)
 
-	http.HandleFunc("/", listHandler)
+	http.HandleFunc("/", healthCheckHandler)
 	http.HandleFunc("/pubsub/push", pushHandler)
 	http.HandleFunc("/search", autocompleteHandler)
 
@@ -80,33 +72,15 @@ func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error connecting to redis", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(results)
-	// ctx := appengine.NewContext(r)
 
-	// index, err := search.Open(searchIndex)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// result := []ProductDoc{}
-	// searchOpts := &search.SearchOptions{
-	// 	Limit: 10,
-	// }
-	// for t := index.Search(ctx, fmt.Sprintf("Name = %s", queryStr), searchOpts); ; {
-	// 	var doc ProductDoc
-	// 	_, err := t.Next(&doc)
-	// 	if err == search.Done {
-	// 		break
-	// 	}
-	// 	if err != nil {
-	// 		fmt.Fprintf(w, "Search error: %v\n", err)
-	// 		break
-	// 	}
-	// 	result = append(result, doc)
-	// }
-
-	// json.NewEncoder(w).Encode(result)
+	respJson := []ProductDoc{}
+	for _, term := range results {
+		p := &ProductDoc{
+			Name: term,
+		}
+		respJson = append(respJson, *p)
+	}
+	json.NewEncoder(w).Encode(respJson)
 }
 
 func pushHandler(w http.ResponseWriter, r *http.Request) {
@@ -134,74 +108,9 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ctx := appengine.NewContext(r)
-
-	// index, err := search.Open(searchIndex)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// p := msg.Message.Data
-	// _, err = index.Put(ctx, strconv.FormatInt(p.ID, 10), &ProductDoc{
-	// 	Name:  p.Name,
-	// 	Image: p.Image,
-	// })
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-
 	fmt.Fprint(w, "OK")
 }
 
-func listHandler(w http.ResponseWriter, r *http.Request) {
-	messagesMu.Lock()
-	defer messagesMu.Unlock()
-
-	if err := tmpl.Execute(w, messages); err != nil {
-		log.Printf("Could not execute template: %v", err)
-	}
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "OK")
 }
-
-var tmpl = template.Must(template.New("").Parse(`<!DOCTYPE html>
-<html>
-  <head>
-		<title>Autocomplete Demo</title>
-		<!-- JS file -->
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/easy-autocomplete/1.3.5/jquery.easy-autocomplete.min.js"></script> 
-
-		<!-- CSS file -->
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easy-autocomplete/1.3.5/easy-autocomplete.min.css"> 
-		<style>
-			.container {
-				display: flex;
-				justify-content: center;
-				align-items: center;
-				width: 100%;
-				height: 100vh;
-			}
-		</style>
-  </head>
-  <body>
-		<div class="container">
-			<input id="basics" />
-		</div>
-		<script>
-
-			$(document).ready(function() {
-				var options = {
-					url: function(phrase) {
-						return "search?q=" + phrase;
-					},
-				
-					getValue: "name"
-				};
-
-				$("#basics").easyAutocomplete(options);
-			});
-
-		</script>
-  </body>
-</html>`))

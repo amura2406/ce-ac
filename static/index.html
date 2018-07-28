@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+		<title>Autocomplete Demo</title>
+		<!-- JS file -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/corejs-typeahead/1.2.1/typeahead.bundle.min.js"></script> 
+    
+    <link rel="shortcut icon" href="https://cloud.google.com/_static/6476e1724a/images/cloud/icons/favicons/onecloud/favicon.ico">
+    <link rel="stylesheet" href="main.css">
+  </head>
+  <body>
+		<div class="container">
+      <h1 class="title">Autocomplete Demo</h1>
+
+			<div class="example">
+        <h2 class="example-name">Product Search</h2>
+        
+        <div class="demo">
+          <input class="typeahead" type="text" placeholder="Product Search">
+        </div>
+      </div>
+		</div>
+		<script>
+
+			var products = new Bloodhound({
+        datumTokenizer: Bloodhound.tokenizers.whitespace,
+        queryTokenizer: Bloodhound.tokenizers.whitespace,
+        remote: {
+          url: 'https://gcp-ce-amura.appspot.com/search?q=%QUERY',
+          wildcard: '%QUERY'
+        }
+      });
+
+      $('.typeahead').typeahead(null, {
+        name: 'products-autocomplete',
+        source: products
+      });
+
+		</script>
+  </body>
+</html>
