@@ -144,7 +144,7 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 	} else {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Error while storing to redis", http.StatusInternalServerError)
 	}
 }
 

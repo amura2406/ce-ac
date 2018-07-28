@@ -12,6 +12,15 @@ html {
   text-align: center;
 }
 
+.footer {
+  bottom: 0;
+  position: fixed;
+}
+
+.footer img {
+  width: 200px;
+}
+
 .tt-menu,
 .gist {
   text-align: left;
