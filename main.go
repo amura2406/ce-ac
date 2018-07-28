@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/rs/cors"
@@ -79,7 +81,7 @@ func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 	conn := redisPool.Get()
 	defer conn.Close()
 
-	results, err := redis.Strings(conn.Do("ZRANGEBYLEX", queryStr, "-", "+", "LIMIT", "0", "10"))
+	results, err := redis.Strings(conn.Do("ZRANGEBYLEX", strings.ToLower(queryStr), "-", "+", "LIMIT", "0", "10"))
 	if err != nil {
 		http.Error(w, "Error connecting to redis", http.StatusInternalServerError)
 		return
@@ -130,22 +132,41 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn := redisPool.Get()
-	defer conn.Close()
-
-	term := product.Name
-	substr := term[:2]
-	termLen := len(term)
-	_, err = redis.Int(conn.Do("ZADD", substr, termLen, term))
+	err = storeTermToRedis(product.Name)
 	if err != nil {
-		http.Error(w, "Error connecting to redis", http.StatusInternalServerError)
-		return
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	Info.Println("Successfully add [", term, "]")
-
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "OK")
+}
+
+func storeTermToRedis(term string) error {
+	lTerm := strings.ToLower(term)
+	termLen := len(lTerm)
+
+	if termLen > 1 {
+		conn := redisPool.Get()
+		defer conn.Close()
+
+		const minChars = 2
+		for i := 0; i < termLen-1; i++ {
+			numChar := minChars + i
+			substr := lTerm[:numChar]
+
+			_, err := redis.Int(conn.Do("ZADD", substr, termLen, term))
+			if err != nil {
+				return errors.New("Error connecting to redis")
+			}
+		}
+
+		Info.Println("Successfully add [", term, "]")
+	} else {
+		Info.Println("Skipping [", term, "]")
+	}
+
+	return nil
 }
