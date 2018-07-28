@@ -158,14 +158,13 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func storeTermToRedis(term string) error {
 	lTerm := strings.ToLower(term)
 	termLen := len(lTerm)
+	conn := redisPool.Get()
+	if conn.Err() != nil {
+		return conn.Err()
+	}
+	defer conn.Close()
 
 	if termLen > 1 {
-		conn := redisPool.Get()
-		if conn.Err() != nil {
-			return conn.Err()
-		}
-		defer conn.Close()
-
 		const minChars = 2
 		const maxChars = 5
 		loopCount := int(math.Min(float64(termLen-1), float64(maxChars)))
