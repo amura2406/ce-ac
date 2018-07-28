@@ -1,11 +1,16 @@
 runtime: go
 env: flex
 
-manual_scaling:
-  instances: 1
+automatic_scaling:
+  min_num_instances: 1
+  max_num_instances: 10
+  cool_down_period_sec: 180
+  cpu_utilization:
+    target_utilization: 0.6
+
 resources:
-  cpu: 1
-  memory_gb: 0.5
+  cpu: 2
+  memory_gb: 1
   disk_size_gb: 10
 network:
   name: default
