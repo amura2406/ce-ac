@@ -48,9 +48,8 @@ func main() {
 func newRedisPool(addr string) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     10,
-		MaxActive:   500,
+		MaxActive:   100,
 		IdleTimeout: 240 * time.Second,
-		Wait:        true,
 		Dial:        func() (redis.Conn, error) { return redis.Dial("tcp", addr) },
 	}
 }
@@ -87,6 +86,10 @@ func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 	queryStr := r.URL.Query().Get("q")
 
 	conn := redisPool.Get()
+	if conn.Err() != nil {
+		http.Error(w, conn.Err().Error(), http.StatusServiceUnavailable)
+		return
+	}
 	defer conn.Close()
 
 	results, err := redis.Strings(conn.Do("ZRANGEBYLEX", strings.ToLower(queryStr), "-", "+", "LIMIT", "0", "10"))
@@ -144,7 +147,7 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 	} else {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 	}
 }
 
@@ -158,6 +161,9 @@ func storeTermToRedis(term string) error {
 
 	if termLen > 1 {
 		conn := redisPool.Get()
+		if conn.Err() != nil {
+			return conn.Err()
+		}
 		defer conn.Close()
 
 		const minChars = 2
