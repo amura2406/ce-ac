@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"os"
 
 	"github.com/gomodule/redigo/redis"
@@ -14,9 +15,14 @@ import (
 var (
 	redisPool *redis.Pool
 	authToken string
+	Info      *log.Logger
+	Error     *log.Logger
 )
 
 func main() {
+	Info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Error = log.New(os.Stderr, "ERRO: ", log.Ldate|log.Ltime|log.Lshortfile)
+
 	authToken = mustGetenv("PUBSUB_VERIFICATION_TOKEN")
 
 	redisHost := mustGetenv("REDISHOST")
@@ -87,6 +93,13 @@ func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func pushHandler(w http.ResponseWriter, r *http.Request) {
+	reqDump, err := httputil.DumpRequest(r, true)
+	if err != nil {
+		Error.Println("Couldn't dump request")
+		http.Error(w, fmt.Sprintln("Couldn't dump request"), 500)
+		return
+	}
+
 	token := r.URL.Query().Get("token")
 	if authToken != token {
 		http.Error(w, fmt.Sprintln("Invalid Token"), 403)
@@ -94,7 +107,8 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := &pushRequest{}
-	if err := json.NewDecoder(r.Body).Decode(msg); err != nil {
+	if err = json.NewDecoder(r.Body).Decode(msg); err != nil {
+		Error.Println("Invalid request payload:", string(reqDump))
 		http.Error(w, fmt.Sprintf("Could not decode body: %v", err), http.StatusBadRequest)
 		return
 	}
@@ -105,11 +119,12 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 	term := msg.Message.Data.Name
 	substr := term[:2]
 	termLen := len(term)
-	_, err := redis.Int(conn.Do("ZADD", substr, termLen, term))
+	_, err = redis.Int(conn.Do("ZADD", substr, termLen, term))
 	if err != nil {
 		http.Error(w, "Error connecting to redis", http.StatusInternalServerError)
 		return
 	}
+	Info.Println("Successfully add [", term, "]")
 
 	fmt.Fprint(w, "OK")
 }
