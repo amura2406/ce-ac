@@ -145,9 +145,9 @@ func pushHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = storeTermToRedis(product.Name)
 	if err != nil {
-		w.WriteHeader(http.StatusNoContent)
-	} else {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
@@ -162,7 +162,7 @@ func storeTermToRedis(term string) error {
 	if conn.Err() != nil {
 		return conn.Err()
 	}
-	// defer conn.Close()
+	defer conn.Close()
 
 	if termLen > 1 {
 		const minChars = 2
@@ -173,11 +173,11 @@ func storeTermToRedis(term string) error {
 			substr := lTerm[:numChar]
 
 			Info.Println("ADD to redis set [", substr, "] :", term, "(len: ", termLen, ")")
-			// _, err := redis.Int(conn.Do("ZADD", substr, termLen, term))
-			// if err != nil {
-			// 	Error.Println(err)
-			// 	return err
-			// }
+			_, err := redis.Int(conn.Do("ZADD", substr, termLen, term))
+			if err != nil {
+				Error.Println(err)
+				return err
+			}
 			Info.Println("ADD into [", substr, "] success")
 		}
 
