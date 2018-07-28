@@ -24,7 +24,7 @@
 		<script>
 
 			var products = new Bloodhound({
-        datumTokenizer: Bloodhound.tokenizers.whitespace,
+        datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
         queryTokenizer: Bloodhound.tokenizers.whitespace,
         remote: {
           url: 'https://gcp-ce-amura.appspot.com/search?q=%QUERY',
@@ -34,6 +34,7 @@
 
       $('.typeahead').typeahead(null, {
         name: 'products-autocomplete',
+        display: 'name',
         source: products
       });
 

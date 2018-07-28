@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/gomodule/redigo/redis"
-	"google.golang.org/appengine"
+	"github.com/rs/cors"
 )
 
 var (
@@ -28,11 +28,14 @@ func main() {
 		return redis.Dial("tcp", redisAddr)
 	}, maxConnections)
 
-	http.HandleFunc("/", healthCheckHandler)
-	http.HandleFunc("/pubsub/push", pushHandler)
-	http.HandleFunc("/search", autocompleteHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", healthCheckHandler)
+	mux.HandleFunc("/pubsub/push", pushHandler)
+	mux.HandleFunc("/search", autocompleteHandler)
 
-	appengine.Main()
+	handler := cors.AllowAll().Handler(mux)
+
+	log.Fatal(http.ListenAndServe(":8080", handler))
 }
 
 func mustGetenv(k string) string {

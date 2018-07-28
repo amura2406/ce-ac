@@ -12,7 +12,6 @@ network:
 
 #[START env_variables]
 env_variables:
-  GOOGLE_CLOUD_PROJECT: gcp-ce-amura
   PUBSUB_VERIFICATION_TOKEN: ABCDEFGHIJKLMN123456789
   REDISHOST: '10.0.0.3'
   REDISPORT: '6379'
