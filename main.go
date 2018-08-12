@@ -27,6 +27,7 @@ func main() {
 	Info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	Error = log.New(os.Stderr, "ERRO: ", log.Ldate|log.Ltime|log.Lshortfile)
 
+	httpPort := mustGetenv("HTTPPORT")
 	authToken = mustGetenv("PUBSUB_VERIFICATION_TOKEN")
 
 	redisHost := mustGetenv("REDISHOST")
@@ -42,7 +43,7 @@ func main() {
 
 	handler := cors.AllowAll().Handler(mux)
 
-	log.Fatal(http.ListenAndServe(":8080", handler))
+	log.Fatal(http.ListenAndServe(fmt.Sprint(":", httpPort), handler))
 }
 
 func newRedisPool(addr string) *redis.Pool {
